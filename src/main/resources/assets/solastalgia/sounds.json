@@ -1,0 +1,191 @@
+{
+    "ambience": {
+        "category": "neutral",
+        "sounds": [
+            {
+                "name": "solastalgia:ambience"
+            }
+        ]
+    },
+    "forget": {
+        "category": "ambient",
+        "sounds": [
+            {
+                "name": "solastalgia:forgetting_sounds/forget1",
+                "stream": true
+            },
+            {
+                "name": "solastalgia:forgetting_sounds/forget2",
+                "stream": true
+            }
+        ]
+    },
+    "paranoia.environment": {
+        "category": "ambient",
+        "sounds": [
+            {
+                "name": "solastalgia:paranoia/environment/cave/cave1"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/outside/outside1"
+            }
+        ]
+    },
+    "paranoia.cave": {
+        "category": "ambient",
+        "sounds": [
+            {
+                "name": "solastalgia:paranoia/environment/cave/cave1"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/cave/cave2"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/cave/cave3"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/cave/cave4"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/cave/cave5"
+            }
+        ]
+    },
+    "paranoia.outside": {
+        "category": "ambient",
+        "sounds": [
+            {
+                "name": "solastalgia:paranoia/environment/outside/outside1"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/outside/outside2"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/outside/outside3"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/outside/outside4"
+            },
+            {
+                "name": "solastalgia:paranoia/environment/outside/outside5"
+            }
+        ]
+    },
+    "paranoia.shadow_flicker.appearance": {
+        "category": "ambient",
+        "sounds": [
+            {
+                "name": "solastalgia:paranoia/shadow_flicker/appearance"
+            }
+        ]
+    },
+    "menu_music": {
+        "category": "music",
+        "sounds": [
+            {
+                "name": "solastalgia:menu_song",
+                "stream": true
+            }
+        ]
+    },
+    "paranoia.subtitle.confusion": {
+        "subtitle": "subtitles.solastalgia.paranoia.confusion",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.grief": {
+        "subtitle": "subtitles.solastalgia.paranoia.grief",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.disorientation": {
+        "subtitle": "subtitles.solastalgia.paranoia.disorientation",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.despair": {
+        "subtitle": "subtitles.solastalgia.paranoia.despair",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.muscle_memory": {
+        "subtitle": "subtitles.solastalgia.paranoia.muscle_memory",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.paranoia": {
+        "subtitle": "subtitles.solastalgia.paranoia.paranoia",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.starvation": {
+        "subtitle": "subtitles.solastalgia.paranoia.starvation",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.guilt": {
+        "subtitle": "subtitles.solastalgia.paranoia.guilt",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.false_hope": {
+        "subtitle": "subtitles.solastalgia.paranoia.false_hope",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    },
+    "paranoia.subtitle.dissociation": {
+        "subtitle": "subtitles.solastalgia.paranoia.dissociation",
+        "sounds": [
+            {
+                "name": "minecraft:entity.bat.ambient",
+                "type": "event",
+                "volume": 0.0001
+            }
+        ]
+    }
+}

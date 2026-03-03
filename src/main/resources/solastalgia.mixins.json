@@ -1,0 +1,44 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.maxsters.coldspawncontrol.mixin",
+  "refmap": "solastalgia.refmap.json",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "BoatIceFrictionMixin",
+    "VineBlockMixin",
+    "WalkNodeEvaluatorMixin",
+    "SpringFeatureMixin",
+    "ServerLevelMixin",
+    "IceMeltMixin",
+    "SnowLayerMeltMixin",
+    "FoliagePlacerMixin",
+    "IglooStructureMixin",
+    "LevelSettingsMixin",
+    "BiomeMixin"
+  ],
+  "client": [
+    "ClientRainVisualsMixin",
+    "accessor.LevelAccessor",
+    "LevelRendererMixin",
+    "LightTextureMixin",
+    "MusicMixin",
+    "ShareToLanScreenMixin",
+    "LevelSummaryMixin",
+    "CreateWorldScreenMixin",
+    "SelectWorldScreenMixin",
+    "ExperimentalWarningMixin",
+    "TreeFeatureMixin",
+    "AdvancementToastMixin",
+    "DebugScreenOverlayMixin",
+    "PlayerAdvancementsMixin",
+    "ForcedSettingsMixin",
+    "OptionsScreenMixin",
+    "FogRendererMixin",
+    "BookEditScreenMixin",
+    "TitleScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

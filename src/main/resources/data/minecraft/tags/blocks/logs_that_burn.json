@@ -1,0 +1,13 @@
+{
+    "replace": false,
+    "values": [
+        "solastalgia:snowy_oak_log",
+        "solastalgia:snowy_spruce_log",
+        "solastalgia:snowy_stripped_oak_log",
+        "solastalgia:snowy_stripped_spruce_log",
+        "solastalgia:snowy_oak_wood",
+        "solastalgia:snowy_spruce_wood",
+        "solastalgia:snowy_stripped_oak_wood",
+        "solastalgia:snowy_stripped_spruce_wood"
+    ]
+}

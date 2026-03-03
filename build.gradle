@@ -1,0 +1,125 @@
+plugins {
+    id 'eclipse'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '6.0+'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+group = 'com.maxsters.solastalgia'
+version = mod_version
+archivesBaseName = mod_id
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+}
+
+minecraft {
+    mappings channel: mappings_channel, version: mappings_version
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'info'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'info'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run')
+            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            environment 'target', 'data'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "solastalgia.refmap.json"
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url 'https://maven.parchmentmc.org' }
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    implementation 'de.kherud:llama:4.1.0'
+
+    compileOnly files('libs/ColdSweat-2.3.12.jar')
+    runtimeOnly files('libs/ColdSweat-2.3.12.jar')
+    compileOnly files('libs/Jade-1.19.1-forge-8.9.2.jar')
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+// Include java-llama.cpp JNI natives in the mod jar
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from {
+        configurations.runtimeClasspath.findAll { it.name.startsWith('llama') }.collect { zipTree(it) }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 17
+}
+
+jar {
+    manifest {
+        attributes(
+                'Specification-Title': mod_name,
+                'Specification-Vendor': 'maxsters',
+                'Specification-Version': '1',
+                'Implementation-Title': mod_name,
+                'Implementation-Version': project.version,
+                'Implementation-Vendor': 'maxsters',
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'MixinConfigs': 'solastalgia.mixins.json'
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact jar
+            artifact sourcesJar
+            groupId = project.group
+            artifactId = archivesBaseName
+            version = project.version
+        }
+    }
+    repositories {
+        maven {
+            name = 'local'
+            url = "${project.buildDir}/repo"
+        }
+    }
+}

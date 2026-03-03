@@ -1,0 +1,31 @@
+{
+  "type": "forge:remove_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": [
+    "minecraft:flower_default",
+    "minecraft:flower_warm",
+    "minecraft:flower_flower_forest",
+    "minecraft:flower_swamp",
+    "minecraft:flower_plains",
+    "minecraft:flower_meadow",
+    "minecraft:flower_forest_flowers",
+    "minecraft:forest_flowers",
+    "minecraft:patch_pumpkin",
+    "minecraft:patch_sunflower",
+    "minecraft:patch_berry_common",
+    "minecraft:patch_berry_rare",
+    "minecraft:patch_sugar_cane",
+    "minecraft:patch_sugar_cane_swamp",
+    "minecraft:patch_sugar_cane_desert",
+    "minecraft:patch_sugar_cane_badlands",
+    "minecraft:rooted_azalea_tree",
+    "minecraft:kelp_cold",
+    "minecraft:kelp_warm",
+    "minecraft:patch_large_fern",
+    "minecraft:patch_taiga_grass",
+    "minecraft:patch_grass_taiga_2"
+  ],
+  "steps": [
+    "vegetal_decoration"
+  ]
+}

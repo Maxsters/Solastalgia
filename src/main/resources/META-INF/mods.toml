@@ -1,0 +1,45 @@
+modLoader="javafml"
+loaderVersion="[43,)"
+license="MIT"
+
+[[mods]]
+modId="solastalgia"
+version="${file.jarVersion}"
+displayName="Solastalgia"
+logoFile="icon.png"
+credits="Created with Gemini 3/3.1 Pro and Opus 4.5/4.6"
+authors="Maxsters"
+description='''
+Essential additions/changes that are designed for this modpack.
+'''
+
+[[dependencies.solastalgia]]
+modId="forge"
+mandatory=true
+versionRange="[43,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.solastalgia]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.19.2,1.20)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.solastalgia]]
+modId="cold_sweat"
+mandatory=true
+versionRange="[2.3.0,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.solastalgia]]
+modId="bettermineshafts"
+mandatory=false
+versionRange="[0,)"
+ordering="AFTER"
+side="BOTH"
+
+    [[mods.mixins]]
+    config="solastalgia.mixins.json"

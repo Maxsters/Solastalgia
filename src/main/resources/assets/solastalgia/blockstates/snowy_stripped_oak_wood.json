@@ -1,0 +1,16 @@
+{
+    "variants": {
+        "axis=y": {
+            "model": "solastalgia:block/snowy_stripped_oak_wood"
+        },
+        "axis=z": {
+            "model": "solastalgia:block/snowy_stripped_oak_wood",
+            "x": 90
+        },
+        "axis=x": {
+            "model": "solastalgia:block/snowy_stripped_oak_wood",
+            "x": 90,
+            "y": 90
+        }
+    }
+}

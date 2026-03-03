@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "solastalgia:block/snowy_spruce_log_horizontal", "x": 90, "y": 90 },
+    "axis=y": { "model": "solastalgia:block/snowy_spruce_log" },
+    "axis=z": { "model": "solastalgia:block/snowy_spruce_log_horizontal", "x": 90 }
+  }
+}
