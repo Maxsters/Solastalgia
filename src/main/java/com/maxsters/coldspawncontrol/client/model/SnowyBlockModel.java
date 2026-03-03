@@ -224,7 +224,9 @@ public class SnowyBlockModel implements BakedModel {
         for (Direction dir : Direction.Plane.HORIZONTAL) {
             BlockPos adjacentPos = pos.relative(dir);
             BlockState adjacentState = level.getBlockState(adjacentPos);
-            if (adjacentState.is(Blocks.POWDER_SNOW)) {
+            if (adjacentState.is(Blocks.POWDER_SNOW) ||
+                    adjacentState.is(Blocks.FIRE) ||
+                    adjacentState.is(Blocks.SOUL_FIRE)) {
                 powderSnowSides.add(dir);
             }
         }
