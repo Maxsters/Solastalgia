@@ -22,6 +22,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import com.maxsters.coldspawncontrol.init.ModParticles;
+import com.maxsters.coldspawncontrol.client.particle.OreGlintParticle;
 import com.maxsters.coldspawncontrol.client.particle.SnowClusterParticle;
 
 import com.maxsters.coldspawncontrol.client.AmnesiaClockProperty;
@@ -143,6 +144,7 @@ public final class ClientModEvents {
     @SubscribeEvent
     public static void registerParticles(RegisterParticleProvidersEvent event) {
         event.register(ModParticles.SNOW_CLUSTER.get(), new SnowClusterParticle.Provider());
+        event.register(ModParticles.ORE_GLINT.get(), new OreGlintParticle.Provider());
     }
 
     @SubscribeEvent

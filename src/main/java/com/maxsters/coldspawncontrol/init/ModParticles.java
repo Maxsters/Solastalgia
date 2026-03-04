@@ -15,6 +15,9 @@ public class ModParticles {
     public static final RegistryObject<SimpleParticleType> SNOW_CLUSTER = PARTICLES.register("snow_cluster",
             () -> new SimpleParticleType(true));
 
+    public static final RegistryObject<SimpleParticleType> ORE_GLINT = PARTICLES.register("ore_glint",
+            () -> new SimpleParticleType(false));
+
     public static void register(IEventBus eventBus) {
         PARTICLES.register(eventBus);
     }
