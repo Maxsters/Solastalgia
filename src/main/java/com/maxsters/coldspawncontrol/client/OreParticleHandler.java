@@ -64,9 +64,23 @@ public final class OreParticleHandler {
             set.add(Blocks.ANCIENT_DEBRIS);
             set.add(Blocks.NETHER_QUARTZ_ORE);
             set.add(Blocks.NETHER_GOLD_ORE);
+
+            addModdedBlock(set, "scalinghealth:heart_crystal_ore");
+            addModdedBlock(set, "scalinghealth:deepslate_heart_crystal_ore");
+            addModdedBlock(set, "scalinghealth:power_crystal_ore");
+            addModdedBlock(set, "scalinghealth:deepslate_power_crystal_ore");
+
             GLINT_BLOCKS = set;
         }
         return GLINT_BLOCKS;
+    }
+
+    private static void addModdedBlock(Set<Block> set, String id) {
+        net.minecraft.resources.ResourceLocation key = new net.minecraft.resources.ResourceLocation(id);
+        Block block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(key);
+        if (block != null && block != Blocks.AIR) {
+            set.add(block);
+        }
     }
 
     @SubscribeEvent
