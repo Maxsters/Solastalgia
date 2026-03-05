@@ -44,7 +44,7 @@ import java.util.Set;
 @SuppressWarnings("null")
 public class CaveMobSpawner {
 
-    private static final float CHUNK_SPAWN_CHANCE = 0.01F;
+    private static final float CHUNK_SPAWN_CHANCE = 0.04F;
     private static final int MAX_MOBS_PER_CHUNK = 2;
     private static final int SPAWN_ATTEMPTS_PER_MOB = 8;
 
@@ -222,8 +222,8 @@ public class CaveMobSpawner {
         int worldX = chunkPos.getMinBlockX() + localX;
         int worldZ = chunkPos.getMinBlockZ() + localZ;
 
-        int minY = 0;
-        int maxY = 56;
+        int minY = -20;
+        int maxY = 40;
         int y = minY + random.nextInt(maxY - minY + 1);
 
         BlockPos target = new BlockPos(worldX, y, worldZ);
