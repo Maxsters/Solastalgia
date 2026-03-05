@@ -20,14 +20,19 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Spawns rare, glowing star particles on ore blocks and valuable mineral
  * blocks to help players find them in pitch-black caves. Client-side only.
+ *
+ * More valuable ores emit more particles, allowing players to gauge
+ * value from the sparkle density alone.
  */
 @Mod.EventBusSubscriber(modid = "solastalgia", value = Dist.CLIENT, bus = Mod.EventBusSubscriber.Bus.FORGE)
 @SuppressWarnings("null")
@@ -37,50 +42,93 @@ public final class OreParticleHandler {
     private static final int SCAN_VERTICAL = 8;
     private static final int BLOCKS_PER_TICK = 60;
 
-    private static Set<Block> GLINT_BLOCKS;
+    // Particle multipliers — higher = more particles = visually "richer"
+    private static final int TIER_LOW = 1; // Coal, copper
+    private static final int TIER_MEDIUM = 2; // Iron, redstone, lapis, quartz, amethyst
+    private static final int TIER_HIGH = 3; // Gold, emerald
+    private static final int TIER_PRECIOUS = 4; // Diamond, ancient debris, nether star blocks
+    private static final int TIER_MODDED = 3; // Scaling Health crystals
+
+    private static Map<Block, Integer> GLINT_BLOCKS;
 
     private OreParticleHandler() {
     }
 
-    private static Set<Block> getGlintBlocks() {
+    private static Map<Block, Integer> getGlintBlocks() {
         if (GLINT_BLOCKS == null) {
-            Set<Block> set = new HashSet<>();
-            set.add(Blocks.RAW_IRON_BLOCK);
-            set.add(Blocks.RAW_COPPER_BLOCK);
-            set.add(Blocks.RAW_GOLD_BLOCK);
-            set.add(Blocks.AMETHYST_CLUSTER);
-            set.add(Blocks.LARGE_AMETHYST_BUD);
-            set.add(Blocks.MEDIUM_AMETHYST_BUD);
-            set.add(Blocks.SMALL_AMETHYST_BUD);
-            set.add(Blocks.AMETHYST_BLOCK);
-            set.add(Blocks.BUDDING_AMETHYST);
-            set.add(Blocks.DIAMOND_BLOCK);
-            set.add(Blocks.EMERALD_BLOCK);
-            set.add(Blocks.GOLD_BLOCK);
-            set.add(Blocks.IRON_BLOCK);
-            set.add(Blocks.LAPIS_BLOCK);
-            set.add(Blocks.REDSTONE_BLOCK);
-            set.add(Blocks.COPPER_BLOCK);
-            set.add(Blocks.ANCIENT_DEBRIS);
-            set.add(Blocks.NETHER_QUARTZ_ORE);
-            set.add(Blocks.NETHER_GOLD_ORE);
+            Map<Block, Integer> map = new HashMap<>();
 
-            addModdedBlock(set, "scalinghealth:heart_crystal_ore");
-            addModdedBlock(set, "scalinghealth:deepslate_heart_crystal_ore");
-            addModdedBlock(set, "scalinghealth:power_crystal_ore");
-            addModdedBlock(set, "scalinghealth:deepslate_power_crystal_ore");
+            // Tier LOW — common ores
+            map.put(Blocks.RAW_COPPER_BLOCK, TIER_LOW);
+            map.put(Blocks.COPPER_BLOCK, TIER_LOW);
 
-            GLINT_BLOCKS = set;
+            // Tier MEDIUM — mid-value
+            map.put(Blocks.RAW_IRON_BLOCK, TIER_MEDIUM);
+            map.put(Blocks.IRON_BLOCK, TIER_MEDIUM);
+            map.put(Blocks.REDSTONE_BLOCK, TIER_MEDIUM);
+            map.put(Blocks.LAPIS_BLOCK, TIER_MEDIUM);
+            map.put(Blocks.NETHER_QUARTZ_ORE, TIER_MEDIUM);
+            map.put(Blocks.AMETHYST_CLUSTER, TIER_MEDIUM);
+            map.put(Blocks.LARGE_AMETHYST_BUD, TIER_MEDIUM);
+            map.put(Blocks.MEDIUM_AMETHYST_BUD, TIER_LOW);
+            map.put(Blocks.SMALL_AMETHYST_BUD, TIER_LOW);
+            map.put(Blocks.AMETHYST_BLOCK, TIER_MEDIUM);
+            map.put(Blocks.BUDDING_AMETHYST, TIER_MEDIUM);
+
+            // Tier HIGH — valuable
+            map.put(Blocks.RAW_GOLD_BLOCK, TIER_HIGH);
+            map.put(Blocks.GOLD_BLOCK, TIER_HIGH);
+            map.put(Blocks.NETHER_GOLD_ORE, TIER_HIGH);
+            map.put(Blocks.EMERALD_BLOCK, TIER_HIGH);
+
+            // Tier PRECIOUS — top value
+            map.put(Blocks.DIAMOND_BLOCK, TIER_PRECIOUS);
+            map.put(Blocks.ANCIENT_DEBRIS, TIER_PRECIOUS);
+
+            // Modded blocks
+            addModdedBlock(map, "scalinghealth:heart_crystal_ore", TIER_MODDED);
+            addModdedBlock(map, "scalinghealth:deepslate_heart_crystal_ore", TIER_MODDED);
+            addModdedBlock(map, "scalinghealth:power_crystal_ore", TIER_MODDED);
+            addModdedBlock(map, "scalinghealth:deepslate_power_crystal_ore", TIER_MODDED);
+
+            GLINT_BLOCKS = map;
         }
         return GLINT_BLOCKS;
     }
 
-    private static void addModdedBlock(Set<Block> set, String id) {
+    private static void addModdedBlock(Map<Block, Integer> map, String id, int tier) {
         net.minecraft.resources.ResourceLocation key = new net.minecraft.resources.ResourceLocation(id);
         Block block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(key);
         if (block != null && block != Blocks.AIR) {
-            set.add(block);
+            map.put(block, tier);
         }
+    }
+
+    /**
+     * Returns the particle multiplier for an ore block, or 0 if not a glint block.
+     */
+    private static int getGlintTier(BlockState state) {
+        // Tag-based ores
+        if (state.is(BlockTags.DIAMOND_ORES))
+            return TIER_PRECIOUS;
+        if (state.is(BlockTags.GOLD_ORES))
+            return TIER_HIGH;
+        if (state.is(BlockTags.EMERALD_ORES))
+            return TIER_HIGH;
+        if (state.is(BlockTags.IRON_ORES))
+            return TIER_MEDIUM;
+        if (state.is(BlockTags.REDSTONE_ORES))
+            return TIER_MEDIUM;
+        if (state.is(BlockTags.LAPIS_ORES))
+            return TIER_MEDIUM;
+        if (state.is(BlockTags.COPPER_ORES))
+            return TIER_LOW;
+        if (state.is(BlockTags.COAL_ORES))
+            return TIER_LOW;
+
+        // Explicit block map
+        Integer tier = getGlintBlocks().get(state.getBlock());
+        return tier != null ? tier : 0;
     }
 
     @SubscribeEvent
@@ -108,7 +156,8 @@ public final class OreParticleHandler {
             BlockPos pos = playerPos.offset(dx, dy, dz);
             BlockState state = level.getBlockState(pos);
 
-            if (!isGlintBlock(state))
+            int tier = getGlintTier(state);
+            if (tier <= 0)
                 continue;
 
             if (!holdingLight && level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos) < 1)
@@ -118,84 +167,65 @@ public final class OreParticleHandler {
             if (exposedFaces.isEmpty())
                 continue;
 
-            Direction face = exposedFaces.get(rng.nextInt(exposedFaces.size()));
-
-            double x, y, z;
-            double xSpeed = 0, ySpeed = 0, zSpeed = 0;
-            double pad = 0.02;
-
-            switch (face) {
-                case UP:
-                    x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
-                    y = pos.getY() + 1.0 + pad;
-                    z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
-                    xSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    zSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    break;
-                case DOWN:
-                    x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
-                    y = pos.getY() - pad;
-                    z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
-                    xSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    zSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    break;
-                case NORTH:
-                    x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
-                    y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
-                    z = pos.getZ() - pad;
-                    xSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    ySpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    break;
-                case SOUTH:
-                    x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
-                    y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
-                    z = pos.getZ() + 1.0 + pad;
-                    xSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    ySpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    break;
-                case WEST:
-                    x = pos.getX() - pad;
-                    y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
-                    z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
-                    ySpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    zSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    break;
-                case EAST:
-                default:
-                    x = pos.getX() + 1.0 + pad;
-                    y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
-                    z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
-                    ySpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    zSpeed = (rng.nextDouble() - 0.5) * 0.005;
-                    break;
+            for (int p = 0; p < tier; p++) {
+                Direction face = exposedFaces.get(rng.nextInt(exposedFaces.size()));
+                spawnParticleOnFace(level, pos, face, rng);
             }
-
-            level.addParticle(ModParticles.ORE_GLINT.get(), x, y, z, xSpeed, ySpeed, zSpeed);
         }
     }
 
-    /**
-     * Checks if a block should emit glint particles. Covers:
-     * - All vanilla ore blocks (via tags)
-     * - Raw ore storage blocks (raw iron/copper/gold)
-     * - Amethyst crystals and geode blocks
-     * - Refined mineral blocks (diamond, emerald, gold, iron, lapis, redstone,
-     * copper)
-     * - Nether-specific ores and ancient debris
-     */
-    private static boolean isGlintBlock(BlockState state) {
-        if (state.is(BlockTags.COAL_ORES)
-                || state.is(BlockTags.IRON_ORES)
-                || state.is(BlockTags.COPPER_ORES)
-                || state.is(BlockTags.GOLD_ORES)
-                || state.is(BlockTags.REDSTONE_ORES)
-                || state.is(BlockTags.LAPIS_ORES)
-                || state.is(BlockTags.DIAMOND_ORES)
-                || state.is(BlockTags.EMERALD_ORES)) {
-            return true;
+    private static void spawnParticleOnFace(ClientLevel level, BlockPos pos, Direction face, ThreadLocalRandom rng) {
+        double x, y, z;
+        double xSpeed = 0, ySpeed = 0, zSpeed = 0;
+        double pad = 0.02;
+
+        switch (face) {
+            case UP:
+                x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
+                y = pos.getY() + 1.0 + pad;
+                z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
+                xSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                zSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                break;
+            case DOWN:
+                x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
+                y = pos.getY() - pad;
+                z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
+                xSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                zSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                break;
+            case NORTH:
+                x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
+                y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
+                z = pos.getZ() - pad;
+                xSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                ySpeed = (rng.nextDouble() - 0.5) * 0.005;
+                break;
+            case SOUTH:
+                x = pos.getX() + 0.2 + rng.nextDouble() * 0.6;
+                y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
+                z = pos.getZ() + 1.0 + pad;
+                xSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                ySpeed = (rng.nextDouble() - 0.5) * 0.005;
+                break;
+            case WEST:
+                x = pos.getX() - pad;
+                y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
+                z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
+                ySpeed = (rng.nextDouble() - 0.5) * 0.005;
+                zSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                break;
+            case EAST:
+            default:
+                x = pos.getX() + 1.0 + pad;
+                y = pos.getY() + 0.2 + rng.nextDouble() * 0.6;
+                z = pos.getZ() + 0.2 + rng.nextDouble() * 0.6;
+                ySpeed = (rng.nextDouble() - 0.5) * 0.005;
+                zSpeed = (rng.nextDouble() - 0.5) * 0.005;
+                break;
         }
 
-        return getGlintBlocks().contains(state.getBlock());
+        level.addParticle(ModParticles.ORE_GLINT.get(), x, y, z, xSpeed, ySpeed, zSpeed);
     }
 
     /**
