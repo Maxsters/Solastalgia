@@ -32,6 +32,12 @@ public class TreeFeatureMixin {
         BlockPos origin = context.origin();
         TreeConfiguration config = context.config();
 
+        // Prevent trees from generating underground (below Y 40)
+        if (origin.getY() < 40) {
+            cir.setReturnValue(false);
+            return;
+        }
+
         // Detect sapling growth vs worldgen:
         // During sapling growth the level is a direct ServerLevel.
         // During worldgen the level is a WorldGenRegion (not a ServerLevel).
@@ -45,19 +51,6 @@ public class TreeFeatureMixin {
         // If the tree uses a StraightTrunkPlacer (standard oak/spruce), swap it for our
         // BranchingTrunkPlacer
         if (config.trunkPlacer instanceof net.minecraft.world.level.levelgen.feature.trunkplacers.StraightTrunkPlacer) {
-            // Create a new BranchingTrunkPlacer with similar height parameters
-            // StraightTrunkPlacer has baseHeight, heightRandA, heightRandB
-            // We use the same values to keep the tree size roughly consistent
-            // Unfortunately we can't easily access the protected fields of the old placer
-            // directly via standard Java without accessors or Mixin accessors.
-            // But we can approximate or just use the config's values if we reconstruct it.
-            // Actually, since we are in a Mixin, we could use shadows/accessors, but for
-            // simplicity let's just make a reasonable guess based on the type.
-            // Standard Oak: 4, 2, 0. Spruce: 5, 2, 1.
-
-            // Let's just blindly create a new config with our placer.
-            // We need to construct a new BranchingTrunkPlacer.
-            // Let's use 5, 3, 0 as a good generic size for "dead trees".
             com.maxsters.coldspawncontrol.worldgen.BranchingTrunkPlacer newPlacer = new com.maxsters.coldspawncontrol.worldgen.BranchingTrunkPlacer(
                     5, 3, 2);
 
