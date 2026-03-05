@@ -202,14 +202,16 @@ public class FrozenWorldFeature extends Feature<NoneFeatureConfiguration> {
 
     /**
      * Determines if water should freeze.
-     * Rule: Y >= 62 (Always) OR Sky access OR Spread.
+     * Rule: Y == 62 (Always, it's sea level) OR Sky access OR Spread.
+     * Water above sea level (e.g. inside enclosed mountains) uses light checks
+     * since the temperature inside a mountain would realistically be warm.
      */
     private boolean shouldFreezeWater(WorldGenLevel level, BlockPos pos, int y, RandomSource random) {
-        // 1. Y >= 62 Rule (Always freeze water at/above sea level)
-        if (y >= SEA_LEVEL) {
+        // 1. Y == 62 Rule (Always freeze water at exact sea level)
+        if (y == SEA_LEVEL) {
             return true;
         }
-        // 2. Below sea level: Use land rules (Sky/Spread)
+        // 2. Any other Y level: Use land rules (Sky/Spread)
         return shouldFreezeLand(level, pos, random);
     }
 
