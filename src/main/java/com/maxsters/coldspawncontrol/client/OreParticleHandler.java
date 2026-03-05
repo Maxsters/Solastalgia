@@ -95,8 +95,7 @@ public final class OreParticleHandler {
         if (player == null || level == null || mc.isPaused())
             return;
 
-        if (!isHoldingLightSource(player))
-            return;
+        boolean holdingLight = isHoldingLightSource(player);
 
         BlockPos playerPos = player.blockPosition();
         ThreadLocalRandom rng = ThreadLocalRandom.current();
@@ -110,6 +109,9 @@ public final class OreParticleHandler {
             BlockState state = level.getBlockState(pos);
 
             if (!isGlintBlock(state))
+                continue;
+
+            if (!holdingLight && level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos) < 1)
                 continue;
 
             List<Direction> exposedFaces = getExposedFaces(level, pos);
