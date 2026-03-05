@@ -1,6 +1,7 @@
 {
     "replace": false,
     "entries": [
-        "solastalgia:ominous_book"
+        "solastalgia:ominous_book",
+        "solastalgia:sapling_loot"
     ]
 }

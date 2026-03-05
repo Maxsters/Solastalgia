@@ -15,6 +15,9 @@ public class ModLootModifiers {
     public static final net.minecraftforge.registries.RegistryObject<Codec<? extends IGlobalLootModifier>> OMINOUS_BOOK = LOOT_MODIFIER_SERIALIZERS
             .register("ominous_book", () -> OminousBookModifier.CODEC);
 
+    public static final net.minecraftforge.registries.RegistryObject<Codec<? extends IGlobalLootModifier>> SAPLING_LOOT = LOOT_MODIFIER_SERIALIZERS
+            .register("sapling_loot", () -> SaplingLootModifier.CODEC);
+
     public static void register(IEventBus eventBus) {
         LOOT_MODIFIER_SERIALIZERS.register(eventBus);
     }
