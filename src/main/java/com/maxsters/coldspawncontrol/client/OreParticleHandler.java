@@ -160,12 +160,21 @@ public final class OreParticleHandler {
             if (tier <= 0)
                 continue;
 
-            if (!holdingLight && level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos) < 1)
-                continue;
-
             List<Direction> exposedFaces = getExposedFaces(level, pos);
             if (exposedFaces.isEmpty())
                 continue;
+
+            if (!holdingLight) {
+                boolean hasLight = false;
+                for (Direction face : exposedFaces) {
+                    if (level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.relative(face)) > 0) {
+                        hasLight = true;
+                        break;
+                    }
+                }
+                if (!hasLight)
+                    continue;
+            }
 
             for (int p = 0; p < tier; p++) {
                 Direction face = exposedFaces.get(rng.nextInt(exposedFaces.size()));
