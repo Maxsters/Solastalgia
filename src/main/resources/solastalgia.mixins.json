@@ -36,7 +36,10 @@
     "OptionsScreenMixin",
     "FogRendererMixin",
     "BookEditScreenMixin",
-    "TitleScreenMixin"
+    "TitleScreenMixin",
+    "ItemPickupParticleMixin",
+    "ExperienceOrbRendererMixin",
+    "ParticleEngineRenderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

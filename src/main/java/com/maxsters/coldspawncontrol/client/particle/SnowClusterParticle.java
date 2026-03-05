@@ -352,8 +352,10 @@ public class SnowClusterParticle extends TextureSheetParticle {
     public static final ParticleRenderType SNOW_RENDER_TYPE = new ParticleRenderType() {
         @Override
         public void begin(@Nonnull BufferBuilder buffer, @Nonnull TextureManager textureManager) {
+            RenderSystem.setShader(net.minecraft.client.renderer.GameRenderer::getParticleShader);
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            RenderSystem.depthMask(true);
             RenderSystem.setShaderTexture(0, SNOW_TEXTURE);
-            RenderSystem.depthMask(false);
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
@@ -361,6 +363,7 @@ public class SnowClusterParticle extends TextureSheetParticle {
 
         @Override
         public void end(@Nonnull Tesselator tesselator) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             tesselator.end();
         }
 

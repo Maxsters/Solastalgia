@@ -18,8 +18,7 @@ import javax.annotation.Nonnull;
 /**
  * A small, glowing star particle that floats upward from ore blocks.
  * Renders at full brightness regardless of ambient lighting, making
- * ores visible in pitch-black caves. Uses a custom fullbright render
- * type with the vanilla glow particle texture.
+ * ores visible in pitch-black caves.
  */
 @SuppressWarnings("null")
 public class OreGlintParticle extends TextureSheetParticle {
@@ -163,15 +162,17 @@ public class OreGlintParticle extends TextureSheetParticle {
     }
 
     /**
-     * Custom render type that binds the glow texture and enables
-     * additive-ish blending for a bright star effect in darkness.
+     * Minimal custom render type that mirrors vanilla's PARTICLE_SHEET_TRANSLUCENT
+     * exactly, only changing the texture. This avoids GL state leaks that cause
+     * particles to flash black during item pickup animations.
      */
     public static final ParticleRenderType ORE_GLINT_RENDER_TYPE = new ParticleRenderType() {
         @Override
         public void begin(@Nonnull BufferBuilder buffer, @Nonnull TextureManager textureManager) {
             RenderSystem.setShader(GameRenderer::getParticleShader);
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            RenderSystem.depthMask(true);
             RenderSystem.setShaderTexture(0, GLOW_TEXTURE);
-            RenderSystem.depthMask(false);
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.PARTICLE);
@@ -179,6 +180,7 @@ public class OreGlintParticle extends TextureSheetParticle {
 
         @Override
         public void end(@Nonnull Tesselator tesselator) {
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
             tesselator.end();
         }
 
