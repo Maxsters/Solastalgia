@@ -75,6 +75,13 @@ public class JournalPromptConfig {
         return currentConfig;
     }
 
+    /**
+     * Ensures the config file is generated on first initialization.
+     */
+    public static void init() {
+        load();
+    }
+
     private static void load() {
         if (configFile == null) {
             Path configDir = net.minecraftforge.fml.loading.FMLPaths.GAMEDIR.get()

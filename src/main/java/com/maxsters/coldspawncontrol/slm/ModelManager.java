@@ -1,6 +1,7 @@
 package com.maxsters.coldspawncontrol.slm;
 
 import com.maxsters.coldspawncontrol.ColdSpawnControl;
+import com.maxsters.coldspawncontrol.config.JournalPromptConfig;
 import de.kherud.llama.InferenceParameters;
 import de.kherud.llama.LlamaModel;
 import de.kherud.llama.ModelParameters;
@@ -75,6 +76,9 @@ public final class ModelManager {
      * Checks if the model exists and starts download if needed.
      */
     public static void initialize() {
+        // Generate the prompt config alongside model download on first init
+        JournalPromptConfig.init();
+
         Path dir = getModelsDir();
 
         if (ModelDownloader.isModelPresent(dir)) {
