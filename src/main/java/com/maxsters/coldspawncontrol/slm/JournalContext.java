@@ -28,6 +28,7 @@ import java.util.Map;
 public final class JournalContext {
 
     // ==================== LOCATION ====================
+    public final String playerName;
     public final String dimension; // "overworld", "the_nether", "the_end"
     public final int yLevel;
     public final String biomeName;
@@ -59,6 +60,7 @@ public final class JournalContext {
     public final boolean hasWeapon;
 
     private JournalContext(Builder b) {
+        this.playerName = b.playerName;
         this.dimension = b.dimension;
         this.yLevel = b.yLevel;
         this.biomeName = b.biomeName;
@@ -91,6 +93,8 @@ public final class JournalContext {
     public static JournalContext capture(ServerPlayer player, ServerLevel level) {
         Builder b = new Builder();
         BlockPos pos = player.blockPosition();
+
+        b.playerName = player.getName().getString();
 
         // Location
         ResourceLocation dimKey = level.dimension().location();
@@ -222,6 +226,7 @@ public final class JournalContext {
     // ==================== BUILDER ====================
 
     private static class Builder {
+        String playerName = "Survivor";
         String dimension = "overworld";
         int yLevel = 64;
         String biomeName = "unknown";

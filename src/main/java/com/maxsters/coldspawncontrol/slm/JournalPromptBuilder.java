@@ -39,6 +39,11 @@ public final class JournalPromptBuilder {
      * @return The full prompt string
      */
     public static String build(JournalContext ctx, String sceneDescription, String[] selectedFocusOut) {
+        return build(ctx, sceneDescription, selectedFocusOut, -1);
+    }
+
+    public static String build(JournalContext ctx, String sceneDescription, String[] selectedFocusOut,
+            int forcedFocusIndex) {
         com.maxsters.coldspawncontrol.config.JournalPromptConfig.PromptConfig config = com.maxsters.coldspawncontrol.config.JournalPromptConfig
                 .get();
 
@@ -83,28 +88,36 @@ public final class JournalPromptBuilder {
         // --- Random Emotional Focus (from config pool) ---
         if (config.emotionalFocuses != null && !config.emotionalFocuses.isEmpty()) {
             java.util.List<com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus> focuses = new java.util.ArrayList<>();
-            for (com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus : config.emotionalFocuses) {
-                boolean isForbidden = false;
-                if (focus.forbiddenDimensions != null) {
-                    for (String dim : focus.forbiddenDimensions) {
-                        if (dim.equalsIgnoreCase(ctx.dimension) || dim.equalsIgnoreCase("minecraft:" + ctx.dimension)) {
-                            isForbidden = true;
-                            break;
+
+            // If we have a forced focus index, resolve it directly bypassing filters
+            if (forcedFocusIndex >= 0 && forcedFocusIndex < config.emotionalFocuses.size()) {
+                focuses.add(config.emotionalFocuses.get(forcedFocusIndex));
+            } else {
+                for (com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus : config.emotionalFocuses) {
+                    boolean isForbidden = false;
+                    if (focus.forbiddenDimensions != null) {
+                        for (String dim : focus.forbiddenDimensions) {
+                            if (dim.equalsIgnoreCase(ctx.dimension)
+                                    || dim.equalsIgnoreCase("minecraft:" + ctx.dimension)) {
+                                isForbidden = true;
+                                break;
+                            }
                         }
                     }
-                }
-                if (!isForbidden) {
-                    focuses.add(focus);
+                    if (!isForbidden) {
+                        focuses.add(focus);
+                    }
                 }
             }
 
             if (!focuses.isEmpty()) {
                 com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus = focuses
                         .get(RANDOM.nextInt(focuses.size()));
+                String focusText = focus.text.replace("{player}", ctx.playerName != null ? ctx.playerName : "stranger");
                 if (selectedFocusOut != null && selectedFocusOut.length > 0) {
-                    selectedFocusOut[0] = focus.text;
+                    selectedFocusOut[0] = focusText;
                 }
-                prompt.append("\n").append(focus.text).append("\n");
+                prompt.append("\n").append(focusText).append("\n");
             }
         }
 

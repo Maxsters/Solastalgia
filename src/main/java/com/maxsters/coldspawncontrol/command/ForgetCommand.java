@@ -35,11 +35,22 @@ public class ForgetCommand {
                 .then(Commands.argument("distance", IntegerArgumentType.integer(10, 1000))
                         .executes(context -> {
                             int distance = IntegerArgumentType.getInteger(context, "distance");
-                            return executeForget(context.getSource(), distance);
-                        })));
+                            return executeForget(context.getSource(), distance, -1);
+                        })
+                        // With distance and focus index argument
+                        .then(Commands.argument("focusIndex", IntegerArgumentType.integer(0))
+                                .executes(context -> {
+                                    int distance = IntegerArgumentType.getInteger(context, "distance");
+                                    int focusIndex = IntegerArgumentType.getInteger(context, "focusIndex");
+                                    return executeForget(context.getSource(), distance, focusIndex);
+                                }))));
     }
 
     private static int executeForget(CommandSourceStack source, int forcedDistance) {
+        return executeForget(source, forcedDistance, -1);
+    }
+
+    private static int executeForget(CommandSourceStack source, int forcedDistance, int forcedFocusIndex) {
         if (source.getEntity() instanceof ServerPlayer executor) {
             boolean hasJournal = com.maxsters.coldspawncontrol.slm.JournalEntryGenerator.findJournal(executor) != null;
 
@@ -48,11 +59,12 @@ public class ForgetCommand {
                         Component.literal("§7[Amnesia] Scheduling global blackout (" + forcedDistance + " blocks)..."),
                         false);
                 AmnesiaBlackoutHandler.scheduleGlobalBlackout(executor.server.getPlayerList().getPlayers(),
-                        forcedDistance, true);
+                        forcedDistance, true, forcedFocusIndex);
             } else {
                 source.sendSuccess(Component.literal("§7[Amnesia] Scheduling global blackout (random distance)..."),
                         false);
-                AmnesiaBlackoutHandler.scheduleGlobalBlackout(executor.server.getPlayerList().getPlayers(), -1, true);
+                AmnesiaBlackoutHandler.scheduleGlobalBlackout(executor.server.getPlayerList().getPlayers(), -1, true,
+                        forcedFocusIndex);
             }
 
             if (hasJournal) {

@@ -145,16 +145,19 @@ public class AmnesiaBlackoutHandler {
         final int effectDurationTicks;
         int currentIndex = 0;
         final boolean debug;
+        final int forcedFocusIndex;
         BlockPos validDestination = null;
 
         PendingBlackout(ServerLevel targetLevel, List<BlockPos> candidates, int forcedDistance,
-                long startTick, ForgetSoundConfig.SoundEntry soundEntry, int effectDurationTicks, boolean debug) {
+                long startTick, ForgetSoundConfig.SoundEntry soundEntry, int effectDurationTicks, boolean debug,
+                int forcedFocusIndex) {
             this.targetLevel = targetLevel;
             this.candidatePositions = candidates;
             this.startTick = startTick;
             this.soundEntry = soundEntry;
             this.effectDurationTicks = effectDurationTicks;
             this.debug = debug;
+            this.forcedFocusIndex = forcedFocusIndex;
         }
     }
 
@@ -171,18 +174,22 @@ public class AmnesiaBlackoutHandler {
      * @param distance Forced teleport distance, or -1 for random.
      */
     public static void scheduleBlackout(ServerPlayer player, int distance) {
-        scheduleBlackout(player, distance, false);
+        scheduleBlackout(player, distance, false, -1);
     }
 
     public static void scheduleBlackout(ServerPlayer player, int distance, boolean debug) {
+        scheduleBlackout(player, distance, debug, -1);
+    }
+
+    public static void scheduleBlackout(ServerPlayer player, int distance, boolean debug, int forcedFocusIndex) {
         ServerLevel level = (ServerLevel) player.level;
         ColdSpawnControl.LOGGER.info("Scheduling blackout for {} (starting async search...)",
                 player.getName().getString());
 
         if (distance > 0) {
-            triggerBlackoutWithDistance(player, level, level.getGameTime(), distance, debug);
+            triggerBlackoutWithDistance(player, level, level.getGameTime(), distance, debug, forcedFocusIndex);
         } else {
-            triggerBlackout(player, level, level.getGameTime(), debug);
+            triggerBlackout(player, level, level.getGameTime(), debug, forcedFocusIndex);
         }
     }
 
@@ -190,6 +197,11 @@ public class AmnesiaBlackoutHandler {
      * Synchronizes a blackout across a group of players.
      */
     public static void scheduleGlobalBlackout(List<ServerPlayer> players, int distance, boolean debug) {
+        scheduleGlobalBlackout(players, distance, debug, -1);
+    }
+
+    public static void scheduleGlobalBlackout(List<ServerPlayer> players, int distance, boolean debug,
+            int forcedFocusIndex) {
         if (players.isEmpty())
             return;
 
@@ -201,9 +213,10 @@ public class AmnesiaBlackoutHandler {
                 continue;
 
             if (distance > 0) {
-                triggerBlackoutWithDistance(player, (ServerLevel) player.level, level.getGameTime(), distance, debug);
+                triggerBlackoutWithDistance(player, (ServerLevel) player.level, level.getGameTime(), distance, debug,
+                        forcedFocusIndex);
             } else {
-                triggerBlackout(player, (ServerLevel) player.level, level.getGameTime(), debug);
+                triggerBlackout(player, (ServerLevel) player.level, level.getGameTime(), debug, forcedFocusIndex);
             }
         }
     }
@@ -315,17 +328,19 @@ public class AmnesiaBlackoutHandler {
         ColdSpawnControl.LOGGER.info("Valid position found for {} at {}. Starting SLM generation.",
                 player.getName().getString(), destination);
 
-        JournalEntryGenerator.startGeneration(player, pending.targetLevel, pending.debug).thenAccept(success -> {
-            player.getServer().execute(() -> {
-                if (player.isRemoved())
-                    return;
+        JournalEntryGenerator.startGeneration(player, pending.targetLevel, pending.debug, pending.forcedFocusIndex)
+                .thenAccept(success -> {
+                    player.getServer().execute(() -> {
+                        if (player.isRemoved())
+                            return;
 
-                ColdSpawnControl.LOGGER.info("SLM generation finished (success={}). Triggering blackout now for {}.",
-                        success, player.getName().getString());
-                completeBlackout(player, pending.targetLevel, destination, pending.soundEntry,
-                        pending.effectDurationTicks, gameTime);
-            });
-        });
+                        ColdSpawnControl.LOGGER.info(
+                                "SLM generation finished (success={}). Triggering blackout now for {}.",
+                                success, player.getName().getString());
+                        completeBlackout(player, pending.targetLevel, destination, pending.soundEntry,
+                                pending.effectDurationTicks, gameTime);
+                    });
+                });
     }
 
     /**
@@ -632,11 +647,21 @@ public class AmnesiaBlackoutHandler {
      * This is public so it can be called by the /forget command.
      */
     public static void triggerBlackout(ServerPlayer player, ServerLevel level, long gameTime) {
-        triggerBlackoutWithDistance(player, level, gameTime, -1, false); // -1 = random
+        triggerBlackoutWithDistance(player, level, gameTime, -1, false, -1); // -1 = random
     }
 
     public static void triggerBlackout(ServerPlayer player, ServerLevel level, long gameTime, boolean debug) {
-        triggerBlackoutWithDistance(player, level, gameTime, -1, debug); // -1 = random
+        triggerBlackoutWithDistance(player, level, gameTime, -1, debug, -1); // -1 = random
+    }
+
+    public static void triggerBlackout(ServerPlayer player, ServerLevel level, long gameTime, boolean debug,
+            int forcedFocusIndex) {
+        triggerBlackoutWithDistance(player, level, gameTime, -1, debug, forcedFocusIndex); // -1 = random
+    }
+
+    public static void triggerBlackoutWithDistance(ServerPlayer player, ServerLevel level, long gameTime,
+            int forcedDistance, boolean debug) {
+        triggerBlackoutWithDistance(player, level, gameTime, forcedDistance, debug, -1);
     }
 
     /**
@@ -644,7 +669,7 @@ public class AmnesiaBlackoutHandler {
      * Now uses async chunk loading to prevent tick freezes.
      */
     public static void triggerBlackoutWithDistance(ServerPlayer player, ServerLevel level, long gameTime,
-            int forcedDistance, boolean debug) {
+            int forcedDistance, boolean debug, int forcedFocusIndex) {
         ColdSpawnControl.LOGGER.info("Triggering amnesia blackout for player {} (async mode)",
                 player.getName().getString());
 
@@ -674,7 +699,7 @@ public class AmnesiaBlackoutHandler {
 
         // Create pending blackout for async processing
         PendingBlackout pending = new PendingBlackout(targetLevel, candidates, forcedDistance,
-                gameTime, soundEntry, effectDurationTicks, debug);
+                gameTime, soundEntry, effectDurationTicks, debug, forcedFocusIndex);
         PENDING_BLACKOUTS.put(player.getUUID(), pending);
 
         ColdSpawnControl.LOGGER.info("Started async blackout with {} candidates", candidates.size());

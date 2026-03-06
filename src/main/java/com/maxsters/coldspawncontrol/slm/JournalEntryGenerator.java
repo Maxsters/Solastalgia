@@ -67,6 +67,11 @@ public final class JournalEntryGenerator {
      * @param level  The server level the player is currently in
      */
     public static CompletableFuture<Boolean> startGeneration(ServerPlayer player, ServerLevel level, boolean debug) {
+        return startGeneration(player, level, debug, -1);
+    }
+
+    public static CompletableFuture<Boolean> startGeneration(ServerPlayer player, ServerLevel level, boolean debug,
+            int forcedFocusIndex) {
         UUID uuid = player.getUUID();
 
         // Reset state for new generation cycle
@@ -118,7 +123,7 @@ public final class JournalEntryGenerator {
 
         // Build prompt (capture which emotional focus was selected)
         String[] selectedFocus = new String[1];
-        String prompt = JournalPromptBuilder.build(context, sceneDescription, selectedFocus);
+        String prompt = JournalPromptBuilder.build(context, sceneDescription, selectedFocus, forcedFocusIndex);
 
         if (debug && selectedFocus[0] != null) {
             player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§d[SLM Debug] Emotional Focus:"));

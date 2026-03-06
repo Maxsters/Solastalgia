@@ -66,7 +66,8 @@ public class JournalPromptConfig {
                     + "your hands are scarred. you don't know how.";
 
             // Default emotional focuses: short and direct, SLM-friendly
-            emotionalFocuses.add(new EmotionalFocus("THINK ABOUT: who are you? the book says a name. is it yours?"));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: who are you? the book says your name is {player}. is it?"));
             emotionalFocuses
                     .add(new EmotionalFocus("THINK ABOUT: mira is dead. you can't remember her voice. only her face."));
             emotionalFocuses
