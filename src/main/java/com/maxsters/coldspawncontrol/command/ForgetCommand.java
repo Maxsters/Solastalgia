@@ -31,8 +31,8 @@ public class ForgetCommand {
                 .executes(context -> {
                     return executeForget(context.getSource(), -1); // -1 = random
                 })
-                // With distance argument
-                .then(Commands.argument("distance", IntegerArgumentType.integer(10, 1000))
+                // With distance argument (-1 for random)
+                .then(Commands.argument("distance", IntegerArgumentType.integer(-1, 1000))
                         .executes(context -> {
                             int distance = IntegerArgumentType.getInteger(context, "distance");
                             return executeForget(context.getSource(), distance, -1);

@@ -86,14 +86,28 @@ public final class JournalPromptBuilder {
         }
 
         // --- Random Emotional Focus (from config pool) ---
-        if (config.emotionalFocuses != null && !config.emotionalFocuses.isEmpty()) {
+        java.util.List<com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus> combinedFocuses = new java.util.ArrayList<>();
+        if (config.defaultEmotionalFocuses != null) {
+            for (com.maxsters.coldspawncontrol.config.JournalPromptConfig.DefaultFocusEntry defaultEntry : config.defaultEmotionalFocuses) {
+                com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus trueFocus = com.maxsters.coldspawncontrol.config.JournalPromptConfig.DEFAULT_FOCUS_POOL
+                        .get(defaultEntry.id);
+                if (trueFocus != null) {
+                    combinedFocuses.add(trueFocus);
+                }
+            }
+        }
+        if (config.customEmotionalFocuses != null) {
+            combinedFocuses.addAll(config.customEmotionalFocuses);
+        }
+
+        if (!combinedFocuses.isEmpty()) {
             java.util.List<com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus> focuses = new java.util.ArrayList<>();
 
             // If we have a forced focus index, resolve it directly bypassing filters
-            if (forcedFocusIndex >= 0 && forcedFocusIndex < config.emotionalFocuses.size()) {
-                focuses.add(config.emotionalFocuses.get(forcedFocusIndex));
+            if (forcedFocusIndex >= 0 && forcedFocusIndex < combinedFocuses.size()) {
+                focuses.add(combinedFocuses.get(forcedFocusIndex));
             } else {
-                for (com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus : config.emotionalFocuses) {
+                for (com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus : combinedFocuses) {
                     boolean isForbidden = false;
                     if (focus.forbiddenDimensions != null) {
                         for (String dim : focus.forbiddenDimensions) {
