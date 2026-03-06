@@ -40,6 +40,8 @@ public final class ModelManager {
     private static volatile long downloadedBytes = 0;
     private static volatile long totalBytes = -1;
     private static volatile String errorMessage = "";
+    private static volatile boolean runningOnGpu = false;
+    private static volatile String hardwareName = "Unknown Hardware";
 
     // ==================== MODEL ====================
     private static volatile LlamaModel model = null;
@@ -162,7 +164,36 @@ public final class ModelManager {
 
         model = new LlamaModel(params);
         STATE.set(State.READY);
-        ColdSpawnControl.LOGGER.info("SLM model loaded and ready (layers={}, threads={})", gpuLayers, threads);
+        runningOnGpu = gpuLayers > 0;
+        fetchHardwareInfo(runningOnGpu);
+        ColdSpawnControl.LOGGER.info("SLM model loaded and ready (layers={}, threads={}, hardware={})", gpuLayers,
+                threads, hardwareName);
+    }
+
+    private static void fetchHardwareInfo(boolean isGpu) {
+        try {
+            oshi.SystemInfo systemInfo = new oshi.SystemInfo();
+            oshi.hardware.HardwareAbstractionLayer hal = systemInfo.getHardware();
+            if (isGpu) {
+                java.util.List<oshi.hardware.GraphicsCard> gpus = hal.getGraphicsCards();
+                if (!gpus.isEmpty()) {
+                    hardwareName = gpus.get(0).getName();
+                    for (oshi.hardware.GraphicsCard gpu : gpus) {
+                        String name = gpu.getName().toLowerCase(java.util.Locale.ROOT);
+                        if (!name.contains("basic render") && !name.contains("intel")) {
+                            hardwareName = gpu.getName();
+                            break;
+                        }
+                    }
+                } else {
+                    hardwareName = "Unknown GPU";
+                }
+            } else {
+                hardwareName = hal.getProcessor().getProcessorIdentifier().getName();
+            }
+        } catch (Throwable t) {
+            hardwareName = isGpu ? "Unknown GPU" : "Unknown CPU";
+        }
     }
 
     /**
@@ -224,6 +255,14 @@ public final class ModelManager {
 
     public static String getErrorMessage() {
         return errorMessage;
+    }
+
+    public static boolean isRunningOnGpu() {
+        return runningOnGpu;
+    }
+
+    public static String getHardwareName() {
+        return hardwareName;
     }
 
     /**

@@ -56,8 +56,18 @@ public class ForgetCommand {
             }
 
             if (hasJournal) {
-                source.sendSuccess(Component.literal("§7[Amnesia] SLM generation started, event will trigger shortly."),
-                        false);
+                if (com.maxsters.coldspawncontrol.slm.ModelManager.isReady()) {
+                    boolean isGpu = com.maxsters.coldspawncontrol.slm.ModelManager.isRunningOnGpu();
+                    String hwName = com.maxsters.coldspawncontrol.slm.ModelManager.getHardwareName();
+                    String hwType = isGpu ? "GPU" : "CPU";
+                    source.sendSuccess(Component.literal(
+                            String.format("§7[Amnesia] SLM generation started. Running on %s: %s", hwType, hwName)),
+                            false);
+                } else {
+                    source.sendSuccess(
+                            Component.literal("§7[Amnesia] SLM generation started, event will trigger shortly."),
+                            false);
+                }
             }
             return 1;
         } else {
