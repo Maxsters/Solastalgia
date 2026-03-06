@@ -82,11 +82,30 @@ public final class JournalPromptBuilder {
 
         // --- Random Emotional Focus (from config pool) ---
         if (config.emotionalFocuses != null && !config.emotionalFocuses.isEmpty()) {
-            String focus = config.emotionalFocuses.get(RANDOM.nextInt(config.emotionalFocuses.size()));
-            if (selectedFocusOut != null && selectedFocusOut.length > 0) {
-                selectedFocusOut[0] = focus;
+            java.util.List<com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus> focuses = new java.util.ArrayList<>();
+            for (com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus : config.emotionalFocuses) {
+                boolean isForbidden = false;
+                if (focus.forbiddenDimensions != null) {
+                    for (String dim : focus.forbiddenDimensions) {
+                        if (dim.equalsIgnoreCase(ctx.dimension) || dim.equalsIgnoreCase("minecraft:" + ctx.dimension)) {
+                            isForbidden = true;
+                            break;
+                        }
+                    }
+                }
+                if (!isForbidden) {
+                    focuses.add(focus);
+                }
             }
-            prompt.append("\n").append(focus).append("\n");
+
+            if (!focuses.isEmpty()) {
+                com.maxsters.coldspawncontrol.config.JournalPromptConfig.EmotionalFocus focus = focuses
+                        .get(RANDOM.nextInt(focuses.size()));
+                if (selectedFocusOut != null && selectedFocusOut.length > 0) {
+                    selectedFocusOut[0] = focus.text;
+                }
+                prompt.append("\n").append(focus.text).append("\n");
+            }
         }
 
         // --- Scene Context ---

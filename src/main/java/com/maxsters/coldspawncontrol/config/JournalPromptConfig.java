@@ -23,13 +23,28 @@ public class JournalPromptConfig {
     private static final String FILENAME = "journal_prompt.json";
     private static File configFile;
 
+    public static class EmotionalFocus {
+        public String text = "";
+        public List<String> forbiddenDimensions = new ArrayList<>();
+
+        public EmotionalFocus() {
+        }
+
+        public EmotionalFocus(String text, String... forbidden) {
+            this.text = text;
+            if (forbidden != null) {
+                this.forbiddenDimensions.addAll(java.util.Arrays.asList(forbidden));
+            }
+        }
+    }
+
     public static class PromptConfig {
         public String systemInstruction = "You represent the inner monologue of a 32-year-old male survivor with severe amnesia and panic. Output RAW TEXT only. DO NOT OUTPUT HELPFUL ASSISTANT TEXT. NO EXPLANATIONS. NO META TEXT. NO BACKTICKS. NO ASTERISKS. NO QUOTATIONS. NO HTML TAGS";
         public List<String> guidelines = new ArrayList<>();
         public boolean useReferenceEntry = false;
         public String referenceEntry = "";
         public String backstory = "";
-        public List<String> emotionalFocuses = new ArrayList<>();
+        public List<EmotionalFocus> emotionalFocuses = new ArrayList<>();
 
         public PromptConfig() {
             // Default guidelines
@@ -51,16 +66,25 @@ public class JournalPromptConfig {
                     + "your hands are scarred. you don't know how.";
 
             // Default emotional focuses: short and direct, SLM-friendly
-            emotionalFocuses.add("THINK ABOUT: who are you? the book says a name. is it yours?");
-            emotionalFocuses.add("THINK ABOUT: mira is dead. you can't remember her voice. only her face.");
-            emotionalFocuses.add("THINK ABOUT: you keep waking up in new places. where did the time go?");
-            emotionalFocuses.add("THINK ABOUT: why do you keep going? everyone is dead. you won't win.");
-            emotionalFocuses.add("THINK ABOUT: your hands know how to make fire. you don't remember learning.");
-            emotionalFocuses.add("THINK ABOUT: the silence is loud. your own breathing scares you.");
-            emotionalFocuses.add("THINK ABOUT: how long has it been? no sun. no days. just hunger.");
-            emotionalFocuses.add("THINK ABOUT: you sent her north. you went east. your fault.");
-            emotionalFocuses.add("THINK ABOUT: something small gave you hope. that is worse than despair.");
-            emotionalFocuses.add("THINK ABOUT: your own handwriting in this book. a stranger wrote it.");
+            emotionalFocuses.add(new EmotionalFocus("THINK ABOUT: who are you? the book says a name. is it yours?"));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: mira is dead. you can't remember her voice. only her face."));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: you keep waking up in new places. where did the time go?"));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: why do you keep going? everyone is dead. you won't win."));
+            emotionalFocuses.add(
+                    new EmotionalFocus("THINK ABOUT: your hands know how to make fire. you don't remember learning.",
+                            "the_nether", "minecraft:the_nether"));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: the silence is loud. your own breathing scares you."));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: how long has it been? no sun. no days. just hunger."));
+            emotionalFocuses.add(new EmotionalFocus("THINK ABOUT: you sent her north. you went east. your fault."));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: something small gave you hope. that is worse than despair."));
+            emotionalFocuses
+                    .add(new EmotionalFocus("THINK ABOUT: your own handwriting in this book. a stranger wrote it."));
         }
     }
 
@@ -106,7 +130,11 @@ public class JournalPromptConfig {
             if (currentConfig == null) {
                 currentConfig = new PromptConfig(); // Handle empty file
             }
-        } catch (IOException e) {
+        } catch (com.google.gson.JsonSyntaxException e) {
+            ColdSpawnControl.LOGGER.warn("Journal prompt config format changed. Overwriting with new defaults...", e);
+            currentConfig = new PromptConfig();
+            save();
+        } catch (Exception e) {
             ColdSpawnControl.LOGGER.error("Failed to load journal prompt config: {}", e.getMessage());
             currentConfig = new PromptConfig(); // Fallback to defaults
         }
