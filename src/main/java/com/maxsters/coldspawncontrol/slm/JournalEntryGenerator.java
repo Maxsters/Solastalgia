@@ -78,15 +78,72 @@ public final class JournalEntryGenerator {
         WAITING_FOR_JOURNAL.remove(uuid);
         PENDING_ENTRIES.remove(uuid);
 
-        // Skip if model isn't ready (still downloading, failed, etc.)
+        // If model isn't ready yet, wait for it asynchronously instead of bailing out
         if (!ModelManager.isReady()) {
-            ColdSpawnControl.LOGGER.debug("SLM model not ready (state: {}), skipping journal generation",
-                    ModelManager.getState());
+            ModelManager.State currentState = ModelManager.getState();
+
+            // Terminal failure states: no point waiting
+            if (currentState == ModelManager.State.LOAD_FAILED
+                    || currentState == ModelManager.State.DOWNLOAD_FAILED
+                    || currentState == ModelManager.State.NOT_CHECKED) {
+                ColdSpawnControl.LOGGER.debug("SLM model in terminal state ({}), skipping journal generation",
+                        currentState);
+                if (debug) {
+                    player.sendSystemMessage(net.minecraft.network.chat.Component
+                            .literal("§c[SLM] Model failed: " + currentState));
+                }
+                return CompletableFuture.completedFuture(false);
+            }
+
+            // Transient states (LOADING, DOWNLOADING, etc.): wait for model to become ready
+            ColdSpawnControl.LOGGER.info("SLM model not ready yet (state: {}), waiting for it...", currentState);
             if (debug) {
                 player.sendSystemMessage(net.minecraft.network.chat.Component
-                        .literal("§c[SLM] Model not ready: " + ModelManager.getState()));
+                        .literal("§e[SLM] Waiting for model to finish loading (" + currentState + ")..."));
             }
-            return CompletableFuture.completedFuture(false);
+
+            try {
+                JournalContext.capture(player, level);
+            } catch (Exception e) {
+                ColdSpawnControl.LOGGER.warn("Failed to capture journal context while waiting: {}", e.getMessage());
+                return CompletableFuture.completedFuture(false);
+            }
+
+            final int ffi = forcedFocusIndex;
+            final boolean dbg = debug;
+            return CompletableFuture.supplyAsync(() -> {
+                // Poll every 500ms for up to 60 seconds
+                for (int attempt = 0; attempt < 120; attempt++) {
+                    if (ModelManager.isReady()) {
+                        return true;
+                    }
+                    ModelManager.State s = ModelManager.getState();
+                    if (s == ModelManager.State.LOAD_FAILED || s == ModelManager.State.DOWNLOAD_FAILED) {
+                        return false;
+                    }
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return false;
+                    }
+                }
+                return false; // Timed out
+            }).thenCompose(modelReady -> {
+                if (!modelReady) {
+                    ColdSpawnControl.LOGGER.warn("SLM model failed to become ready after waiting. Skipping.");
+                    return CompletableFuture.completedFuture(false);
+                }
+                ColdSpawnControl.LOGGER.info("SLM model is now ready. Proceeding with generation for {}.",
+                        player.getName().getString());
+                // Re-enter startGeneration now that model is ready
+                // We need to run the rest on the server thread for context capture
+                CompletableFuture<Boolean> result = new CompletableFuture<>();
+                player.getServer().execute(() -> {
+                    startGeneration(player, level, dbg, ffi).thenAccept(result::complete);
+                });
+                return result;
+            });
         }
 
         // Check for writable book before capturing context to save compute

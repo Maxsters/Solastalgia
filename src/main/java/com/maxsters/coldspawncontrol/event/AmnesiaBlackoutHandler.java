@@ -57,6 +57,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Amnesia blackout mechanic - randomly teleports player to simulate memory
@@ -134,6 +136,15 @@ public class AmnesiaBlackoutHandler {
     // Track pending blackouts for async processing
     private static final Map<UUID, PendingBlackout> PENDING_BLACKOUTS = new HashMap<>();
 
+    // Group ID counter for synchronized blackout batches
+    private static final AtomicLong GROUP_ID_COUNTER = new AtomicLong(0);
+
+    private enum BlackoutState {
+        SEARCHING,   // Still looking for a valid teleport position
+        GENERATING,  // Position found, SLM generation in progress
+        READY        // Both position and SLM generation complete, waiting for group
+    }
+
     /**
      * Tracks a blackout in progress while chunks are being loaded async.
      */
@@ -146,11 +157,14 @@ public class AmnesiaBlackoutHandler {
         int currentIndex = 0;
         final boolean debug;
         final int forcedFocusIndex;
+        final long groupId;
         BlockPos validDestination = null;
+        BlackoutState state = BlackoutState.SEARCHING;
+        CompletableFuture<Boolean> slmFuture = null;
 
         PendingBlackout(ServerLevel targetLevel, List<BlockPos> candidates, int forcedDistance,
                 long startTick, ForgetSoundConfig.SoundEntry soundEntry, int effectDurationTicks, boolean debug,
-                int forcedFocusIndex) {
+                int forcedFocusIndex, long groupId) {
             this.targetLevel = targetLevel;
             this.candidatePositions = candidates;
             this.startTick = startTick;
@@ -158,6 +172,7 @@ public class AmnesiaBlackoutHandler {
             this.effectDurationTicks = effectDurationTicks;
             this.debug = debug;
             this.forcedFocusIndex = forcedFocusIndex;
+            this.groupId = groupId;
         }
     }
 
@@ -206,7 +221,9 @@ public class AmnesiaBlackoutHandler {
             return;
 
         ServerLevel level = (ServerLevel) players.get(0).level;
-        ColdSpawnControl.LOGGER.info("Scheduling globally synchronized blackout for {} players...", players.size());
+        long groupId = GROUP_ID_COUNTER.incrementAndGet();
+        ColdSpawnControl.LOGGER.info("Scheduling globally synchronized blackout for {} players (group {})...",
+                players.size(), groupId);
 
         for (ServerPlayer player : players) {
             if (player.isRemoved())
@@ -214,9 +231,10 @@ public class AmnesiaBlackoutHandler {
 
             if (distance > 0) {
                 triggerBlackoutWithDistance(player, (ServerLevel) player.level, level.getGameTime(), distance, debug,
-                        forcedFocusIndex);
+                        forcedFocusIndex, groupId);
             } else {
-                triggerBlackout(player, (ServerLevel) player.level, level.getGameTime(), debug, forcedFocusIndex);
+                triggerBlackoutWithDistance(player, (ServerLevel) player.level, level.getGameTime(), -1, debug,
+                        forcedFocusIndex, groupId);
             }
         }
     }
@@ -323,24 +341,86 @@ public class AmnesiaBlackoutHandler {
         return null;
     }
 
-    private static void startSLMAndComplete(ServerPlayer player, PendingBlackout pending, BlockPos destination,
-            long gameTime) {
-        ColdSpawnControl.LOGGER.info("Valid position found for {} at {}. Starting SLM generation.",
-                player.getName().getString(), destination);
+    /**
+     * Checks if any other member of the same blackout group has already found a valid destination.
+     * This is the primary piggyback mechanism - preferred over RECENT_DESTINATIONS because
+     * the group barrier means completeBlackout (which populates RECENT_DESTINATIONS) hasn't fired yet.
+     */
+    private static BlockPos getGroupMemberDestination(PendingBlackout self) {
+        for (PendingBlackout other : PENDING_BLACKOUTS.values()) {
+            if (other != self && other.groupId == self.groupId && other.validDestination != null) {
+                return other.validDestination;
+            }
+        }
+        return null;
+    }
 
-        JournalEntryGenerator.startGeneration(player, pending.targetLevel, pending.debug, pending.forcedFocusIndex)
-                .thenAccept(success -> {
-                    player.getServer().execute(() -> {
-                        if (player.isRemoved())
-                            return;
+    /**
+     * Begins SLM generation for a player whose position has been found.
+     * Transitions the player to GENERATING state and kicks off the async SLM future.
+     */
+    private static void beginSLMGeneration(ServerPlayer player, PendingBlackout pending) {
+        pending.state = BlackoutState.GENERATING;
+        ColdSpawnControl.LOGGER.info("Valid position found for {} at {}. Starting SLM generation (group {}).",
+                player.getName().getString(), pending.validDestination, pending.groupId);
 
-                        ColdSpawnControl.LOGGER.info(
-                                "SLM generation finished (success={}). Triggering blackout now for {}.",
-                                success, player.getName().getString());
-                        completeBlackout(player, pending.targetLevel, destination, pending.soundEntry,
-                                pending.effectDurationTicks, gameTime);
-                    });
-                });
+        pending.slmFuture = JournalEntryGenerator.startGeneration(
+                player, pending.targetLevel, pending.debug, pending.forcedFocusIndex);
+        pending.slmFuture.thenAccept(success -> {
+            player.getServer().execute(() -> {
+                PendingBlackout current = PENDING_BLACKOUTS.get(player.getUUID());
+                if (current != null && current == pending && current.state == BlackoutState.GENERATING) {
+                    current.state = BlackoutState.READY;
+                    ColdSpawnControl.LOGGER.info(
+                            "SLM generation finished (success={}) for {} in group {}. Waiting for group.",
+                            success, player.getName().getString(), pending.groupId);
+                }
+            });
+        });
+    }
+
+    /**
+     * Checks if all members of a blackout group are READY (or have been removed/cancelled).
+     * If so, completes the blackout for all of them simultaneously.
+     */
+    private static void tryCompleteGroup(long groupId, long gameTime) {
+        List<Map.Entry<UUID, PendingBlackout>> groupMembers = new ArrayList<>();
+        for (Map.Entry<UUID, PendingBlackout> entry : PENDING_BLACKOUTS.entrySet()) {
+            if (entry.getValue().groupId == groupId) {
+                groupMembers.add(entry);
+            }
+        }
+
+        if (groupMembers.isEmpty()) return;
+
+        // Check if all group members are READY
+        boolean allReady = true;
+        for (Map.Entry<UUID, PendingBlackout> entry : groupMembers) {
+            if (entry.getValue().state != BlackoutState.READY) {
+                allReady = false;
+                break;
+            }
+        }
+
+        if (!allReady) return;
+
+        ColdSpawnControl.LOGGER.info("All {} members of group {} are READY. Completing blackout for all.",
+                groupMembers.size(), groupId);
+
+        for (Map.Entry<UUID, PendingBlackout> entry : groupMembers) {
+            UUID uuid = entry.getKey();
+            PendingBlackout pending = entry.getValue();
+            PENDING_BLACKOUTS.remove(uuid);
+
+            ServerPlayer player = pending.targetLevel.getServer().getPlayerList().getPlayer(uuid);
+            if (player == null || player.isRemoved()) {
+                ColdSpawnControl.LOGGER.warn("Player {} left before group {} completed. Skipping.", uuid, groupId);
+                continue;
+            }
+
+            completeBlackout(player, pending.targetLevel, pending.validDestination, pending.soundEntry,
+                    pending.effectDurationTicks, gameTime);
+        }
     }
 
     /**
@@ -354,22 +434,47 @@ public class AmnesiaBlackoutHandler {
         if (pending == null)
             return;
 
+        // If READY, just check if the whole group is done
+        if (pending.state == BlackoutState.READY) {
+            tryCompleteGroup(pending.groupId, gameTime);
+            return;
+        }
+
+        // If GENERATING, wait for the SLM future to finish (state transitions on callback)
+        if (pending.state == BlackoutState.GENERATING) {
+            // Timeout safety: if SLM takes too long, force transition to READY
+            long elapsed = gameTime - pending.startTick;
+            if (elapsed > MAX_LOADING_TICKS * 10) {
+                ColdSpawnControl.LOGGER.warn("SLM generation timed out for {}. Forcing READY state.",
+                        player.getName().getString());
+                pending.state = BlackoutState.READY;
+                tryCompleteGroup(pending.groupId, gameTime);
+            }
+            return;
+        }
+
+        // === SEARCHING state ===
         long elapsed = gameTime - pending.startTick;
 
         // Check for timeout
         if (elapsed > MAX_LOADING_TICKS) {
-            BlockPos sharedDest = getRecentSharedDestination(pending.targetLevel, gameTime);
-            if (sharedDest != null) {
-                PENDING_BLACKOUTS.remove(uuid);
-                startSLMAndComplete(player, pending, sharedDest, gameTime);
+            // Try piggyback: check group members first, then RECENT_DESTINATIONS
+            BlockPos piggyback = getGroupMemberDestination(pending);
+            if (piggyback == null) {
+                piggyback = getRecentSharedDestination(pending.targetLevel, gameTime);
+            }
+            if (piggyback != null) {
+                pending.validDestination = piggyback;
+                beginSLMGeneration(player, pending);
                 return;
             }
 
-            boolean othersStillSearching = PENDING_BLACKOUTS.values().stream()
-                    .anyMatch(p -> p.targetLevel.dimension().equals(pending.targetLevel.dimension()) && p != pending);
+            // Check if any group member is still working (searching, generating, or ready with a destination)
+            boolean groupMembersActive = PENDING_BLACKOUTS.values().stream()
+                    .anyMatch(p -> p.groupId == pending.groupId && p != pending);
 
-            if (othersStillSearching && elapsed <= MAX_LOADING_TICKS * 2) {
-                return; // Wait up to MAX_LOADING_TICKS * 2 for others
+            if (groupMembersActive && elapsed <= MAX_LOADING_TICKS * 4) {
+                return; // Keep waiting for group members to find a position we can piggyback on
             }
 
             ColdSpawnControl.LOGGER.warn("Blackout chunk loading timed out after {} ticks for {}. Cancelling event.",
@@ -378,10 +483,9 @@ public class AmnesiaBlackoutHandler {
             return;
         }
 
-        // Already found a valid destination? Complete the blackout
+        // Already found a valid destination? Start SLM generation
         if (pending.validDestination != null) {
-            PENDING_BLACKOUTS.remove(uuid);
-            startSLMAndComplete(player, pending, pending.validDestination, gameTime);
+            beginSLMGeneration(player, pending);
             return;
         }
 
@@ -390,38 +494,40 @@ public class AmnesiaBlackoutHandler {
             BlockPos candidate = pending.candidatePositions.get(pending.currentIndex);
             pending.currentIndex++;
 
-            // Request chunk loading (non-blocking if chunk isn't loaded)
             int chunkX = candidate.getX() >> 4;
             int chunkZ = candidate.getZ() >> 4;
 
-            // Check if chunk is already loaded - if so, we can validate immediately
             if (pending.targetLevel.hasChunk(chunkX, chunkZ)) {
                 BlockPos safe = findSafeYFast(pending.targetLevel, candidate.getX(), candidate.getZ(),
                         player.getYRot());
                 if (safe != null && isLocationSafeFast(pending.targetLevel, safe)) {
                     pending.validDestination = safe;
-                    return; // Will teleport on next tick
+                    return; // Will start SLM on next tick
                 }
             } else {
-                // Request async chunk load - will be available on future ticks
                 pending.targetLevel.getChunkSource().getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
             }
         }
 
         // If we've exhausted all candidates without finding a valid spot
         if (pending.currentIndex >= pending.candidatePositions.size()) {
-            BlockPos sharedDest = getRecentSharedDestination(pending.targetLevel, gameTime);
-            if (sharedDest != null) {
-                PENDING_BLACKOUTS.remove(uuid);
-                startSLMAndComplete(player, pending, sharedDest, gameTime);
+            // Try piggyback: check group members first, then RECENT_DESTINATIONS
+            BlockPos piggyback = getGroupMemberDestination(pending);
+            if (piggyback == null) {
+                piggyback = getRecentSharedDestination(pending.targetLevel, gameTime);
+            }
+            if (piggyback != null) {
+                pending.validDestination = piggyback;
+                beginSLMGeneration(player, pending);
                 return;
             }
 
-            boolean othersStillSearching = PENDING_BLACKOUTS.values().stream()
-                    .anyMatch(p -> p.targetLevel.dimension().equals(pending.targetLevel.dimension()) && p != pending);
+            // Check if any group member is still active (they might find a position we can use)
+            boolean groupMembersActive = PENDING_BLACKOUTS.values().stream()
+                    .anyMatch(p -> p.groupId == pending.groupId && p != pending);
 
-            if (othersStillSearching && elapsed <= MAX_LOADING_TICKS * 2) {
-                return; // Wait up to MAX_LOADING_TICKS * 2 for others
+            if (groupMembersActive && elapsed <= MAX_LOADING_TICKS * 4) {
+                return; // Keep waiting for group members to find a position we can piggyback on
             }
 
             ColdSpawnControl.LOGGER.warn(
@@ -647,31 +753,37 @@ public class AmnesiaBlackoutHandler {
      * This is public so it can be called by the /forget command.
      */
     public static void triggerBlackout(ServerPlayer player, ServerLevel level, long gameTime) {
-        triggerBlackoutWithDistance(player, level, gameTime, -1, false, -1); // -1 = random
+        triggerBlackoutWithDistance(player, level, gameTime, -1, false, -1, GROUP_ID_COUNTER.incrementAndGet());
     }
 
     public static void triggerBlackout(ServerPlayer player, ServerLevel level, long gameTime, boolean debug) {
-        triggerBlackoutWithDistance(player, level, gameTime, -1, debug, -1); // -1 = random
+        triggerBlackoutWithDistance(player, level, gameTime, -1, debug, -1, GROUP_ID_COUNTER.incrementAndGet());
     }
 
     public static void triggerBlackout(ServerPlayer player, ServerLevel level, long gameTime, boolean debug,
             int forcedFocusIndex) {
-        triggerBlackoutWithDistance(player, level, gameTime, -1, debug, forcedFocusIndex); // -1 = random
+        triggerBlackoutWithDistance(player, level, gameTime, -1, debug, forcedFocusIndex, GROUP_ID_COUNTER.incrementAndGet());
     }
 
     public static void triggerBlackoutWithDistance(ServerPlayer player, ServerLevel level, long gameTime,
             int forcedDistance, boolean debug) {
-        triggerBlackoutWithDistance(player, level, gameTime, forcedDistance, debug, -1);
+        triggerBlackoutWithDistance(player, level, gameTime, forcedDistance, debug, -1, GROUP_ID_COUNTER.incrementAndGet());
+    }
+
+    public static void triggerBlackoutWithDistance(ServerPlayer player, ServerLevel level, long gameTime,
+            int forcedDistance, boolean debug, int forcedFocusIndex) {
+        triggerBlackoutWithDistance(player, level, gameTime, forcedDistance, debug, forcedFocusIndex, GROUP_ID_COUNTER.incrementAndGet());
     }
 
     /**
      * Triggers blackout with a specific distance (or random if -1).
      * Now uses async chunk loading to prevent tick freezes.
+     * All players in the same groupId will be synchronized.
      */
     public static void triggerBlackoutWithDistance(ServerPlayer player, ServerLevel level, long gameTime,
-            int forcedDistance, boolean debug, int forcedFocusIndex) {
-        ColdSpawnControl.LOGGER.info("Triggering amnesia blackout for player {} (async mode)",
-                player.getName().getString());
+            int forcedDistance, boolean debug, int forcedFocusIndex, long groupId) {
+        ColdSpawnControl.LOGGER.info("Triggering amnesia blackout for player {} (async mode, group {})",
+                player.getName().getString(), groupId);
 
         // Prevent duplicate pending blackouts
         if (PENDING_BLACKOUTS.containsKey(player.getUUID())) {
@@ -699,10 +811,10 @@ public class AmnesiaBlackoutHandler {
 
         // Create pending blackout for async processing
         PendingBlackout pending = new PendingBlackout(targetLevel, candidates, forcedDistance,
-                gameTime, soundEntry, effectDurationTicks, debug, forcedFocusIndex);
+                gameTime, soundEntry, effectDurationTicks, debug, forcedFocusIndex, groupId);
         PENDING_BLACKOUTS.put(player.getUUID(), pending);
 
-        ColdSpawnControl.LOGGER.info("Started async blackout with {} candidates", candidates.size());
+        ColdSpawnControl.LOGGER.info("Started async blackout with {} candidates (group {})", candidates.size(), groupId);
     }
 
     // Note: preloadChunks is no longer used - chunk loading is now handled async in
